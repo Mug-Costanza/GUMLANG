@@ -1,0 +1,7 @@
+
+
+Interpreter differentiates between symbols and such.
+
+Parser interprets structure of code and determines what operations to make.
+
+
