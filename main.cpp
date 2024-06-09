@@ -10,7 +10,7 @@ int main()
     // std::string input;
     // std::cin >> input;
     
-    std::string input = "/Users/zacharybunch/Documents/GUMLANG/GUMLANG/hello.gum";
+    std::string input = "/path/to/hello.gum";
 
     Parser parser(input);
     parser.InterpretFile();
