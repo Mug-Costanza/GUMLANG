@@ -6,3 +6,5 @@ c " + 30A"
 hello " hello"
 
 print a + b + c + hello
+
+// output is "30 + 30A hello"
