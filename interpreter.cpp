@@ -2,17 +2,16 @@
 
 int ReadFile(const char *source)
 {
-    std::ifstream file(source);
-    file.open(source);
-    bool isValidFile = file.is_open();
+    std::string filename(source);
     
-    if(!isValidFile)
+    std::ifstream file(source);
+    if (!file.is_open())
     {
-        std::cout << "Cannot open source file. Try opening from a different directory." << std::endl;
-        file.close();
+        std::cerr << "Cannot open source file. Try opening from a different directory." << std::endl;
         return -1;
     }
-    
+
+    file.close();
     return 0;
 }
 

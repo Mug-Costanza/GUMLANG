@@ -1,33 +1,19 @@
-/*
-    WHAT A PROGRAMMING LANGUAGE NEEDS:
-     * VARIABLES
-     * LANGUAGE INTERPRETOR
-     
-    GOALS:
-     * CREATE A READABLE SYNTAX
-     * MAKE A THE LANGUAGE SIMPLE AND EASY
-     * MAYBE SOME SIMPLE FORM OF MEMORY MANAGEMENT
-*/
-
-//std
-#include <stdio.h>
-#include <stdlib.h>
 #include <iostream>
+#include <string>
+#include "parser.hpp"
 
-//Project Files
-#include "interpreter.cpp"
+using namespace GUMLANG;
 
 int main()
 {
-    std::cout << "Enter source file directory." << std::endl;
+    // std::cout << "Enter source file directory." << std::endl;
+    // std::string input;
+    // std::cin >> input;
     
-    std::string input;
-    
-    std::cin >> input;
+    std::string input = "/Users/zacharybunch/Documents/GUMLANG/GUMLANG/hello.gum";
 
-    const char *source = input.c_str();
-    
-    ReadFile(source);
-    
+    Parser parser(input);
+    parser.InterpretFile();
+
     return 0;
 }

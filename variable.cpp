@@ -1,146 +1,45 @@
 #include "variable.hpp"
 
-using namespace GUMLANG;
+Variable::Variable() : type(VariableType::NUMBER), numberValue(0.0) {}
 
-Variable::Variable(std::string id)
+Variable::Variable(const std::string& name, double val)
+    : type(VariableType::NUMBER), numberValue(val) {}
+
+Variable::Variable(const std::string& name, const std::string& val)
+    : type(VariableType::STRING), value(val) {}
+
+void Variable::add(const Variable& other)
 {
-    if(value == (INT32_C || float_t))
+    if (type == VariableType::NUMBER && other.type == VariableType::NUMBER)
     {
-        type = 1;
+        numberValue += other.numberValue;
     }
-    else if(value == BOOL)
+    else if (type == VariableType::STRING && other.type == VariableType::STRING)
     {
-        type = 2;
+        value += other.value;
     }
-    else if(value == STRING)
-    {
-        type = 3;
-    }
-    else
-    {
-        std::cout << "Variable has no defined type." << std::endl;
-        type = 0;
-    } 
 }
 
-void Variable::Delete()
+void Variable::subtract(const Variable& other)
 {
-    //~Variable();
+    if (type == VariableType::NUMBER && other.type == VariableType::NUMBER)
+    {
+        numberValue -= other.numberValue;
+    }
 }
 
-Variable::~Variable()
+void Variable::multiply(const Variable& other)
 {
-	    
+    if (type == VariableType::NUMBER && other.type == VariableType::NUMBER)
+    {
+        numberValue *= other.numberValue;
+    }
 }
 
-bool Variable::canCombine(Variable a, Variable b)
+void Variable::divide(const Variable& other)
 {
-    switch(a.type)
+    if (type == VariableType::NUMBER && other.type == VariableType::NUMBER)
     {
-        case(1): // NUM
-        
-        switch(b.type)
-        {
-             case(1): // NUM
-             
-             return true;
-             
-             break;
-             
-             case(2): // BOOL
-             
-             return false;
-             
-             break;
-             
-             case(3): // STRING
-             
-             return false;
-             
-             break;
-        }
-        
-        break;
-        
-        case(2): // BOOL
-        
-        return false;
-        
-        break;
-        
-        case(3): // STRING
-        
-        switch(b.type)
-        {
-            case(1): // NUM
-            
-            return true;
-            
-            break;
-            
-            case(2): // BOOL
-            
-            return true;
-            
-            break;
-            
-            case(3): // STRING
-            
-            return true;
-            
-            break;
-        }
-        
-        break;
+        numberValue /= other.numberValue;
     }
-    
-    return false;
-}
-        
-void Variable::Add(Variable a, Variable b)
-{
-    if(!canCombine(a, b))
-    {
-        std::cout << a.id << " and " << b.id << " cannot be combined." << std::endl;
-        
-        return NULL;
-    }
-    
-    a = a + b;
-}
-
-void Variable::Subtract(Variable a, Variable b)
-{
-    if(!canCombine(a, b))
-    {
-        std::cout << a.id << " and " << b.id << " cannot be combined." << std::endl;
-        
-        return NULL;
-    }
-    
-    a = a + b;
-}
-
-void Variable::Multiply(Variable a, Variable b)
-{
-    if(!canCombine(a, b))
-    {
-        std::cout << a.id << " and " << b.id << " cannot be combined." << std::endl;
-        
-        return NULL;
-    }
-    
-    a = a + b;
-}
-
-void Variable::Add(Variable a, Variable b)
-{
-    if(!canCombine(a, b))
-    {
-        std::cout << a.id << " and " << b.id << " cannot be combined." << std::endl;
-        
-        return NULL;
-    }
-    
-    a = a + b;
 }

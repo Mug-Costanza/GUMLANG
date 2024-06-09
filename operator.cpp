@@ -43,7 +43,22 @@ bool Operator::isValidOperator(char op)
     return true;
 }
 
-void defineOperator(char op)
-{
-    
-}
+void Operator::defineOperator(char op) {
+        // Example logic to handle different operators
+        switch (op) {
+            case '+':
+                // Handle addition
+                break;
+            case '-':
+                // Handle subtraction
+                break;
+            case '*':
+                // Handle multiplication
+                break;
+            case '/':
+                // Handle division
+                break;
+            default:
+                std::cerr << "Unknown operator: " << op << std::endl;
+        }
+    }

@@ -1,1 +1,8 @@
-print "Hello World!"
+a 10
+b 20
+
+c " + 30A"
+
+hello " hello"
+
+print a + b + c + hello
