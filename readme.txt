@@ -1,4 +1,4 @@
-GUMLANG
+# GUMLANG
 
 No variable type specification needed.
 
@@ -32,5 +32,5 @@ for 100 x++
 Source files stored in .gum file type.
 
 
-
-
+## Purpose of This Project :
+* I dunno, I just felt like it.
