@@ -142,7 +142,21 @@ void Parser::parseLine(const std::string& line)
 
 void Parser::handleExpression(const std::string& content)
 {
-    std::istringstream iss(content);
+    Variable result = evaluateExpression(content);
+
+    if (result.type == VariableType::NUMBER)
+    {
+        std::cout << result.numberValue << std::endl;
+    }
+    else
+    {
+        std::cout << result.value << std::endl;
+    }
+}
+
+Variable Parser::evaluateExpression(const std::string& expression)
+{
+    std::istringstream iss(expression);
     std::string token;
     std::vector<std::string> tokens;
     while (std::getline(iss, token, ' '))
@@ -185,7 +199,7 @@ void Parser::handleExpression(const std::string& content)
                 else
                 {
                     std::cerr << "Undefined variable: " << token << std::endl;
-                    return;
+                    return Variable("", 0.0);
                 }
             }
 
@@ -229,7 +243,7 @@ void Parser::handleExpression(const std::string& content)
                     else
                     {
                         std::cerr << "Unsupported operation for non-numeric types: " << result.value << " - " << var.value << std::endl;
-                        return;
+                        return Variable("", 0.0);
                     }
                 }
                 else if (op == "*")
@@ -241,7 +255,7 @@ void Parser::handleExpression(const std::string& content)
                     else
                     {
                         std::cerr << "Unsupported operation for non-numeric types: " << result.value << " * " << var.value << std::endl;
-                        return;
+                        return Variable("", 0.0);
                     }
                 }
                 else if (op == "/")
@@ -255,53 +269,46 @@ void Parser::handleExpression(const std::string& content)
                         else
                         {
                             std::cerr << "Division by zero error" << std::endl;
-                            return;
+                            return Variable("", 0.0);
                         }
                     }
                     else
                     {
                         std::cerr << "Unsupported operation for non-numeric types: " << result.value << " / " << var.value << std::endl;
-                        return;
+                        return Variable("", 0.0);
                     }
                 }
             }
         }
     }
 
-    if (result.type == VariableType::NUMBER)
-    {
-        std::cout << result.numberValue << std::endl;
-    }
-    else
-    {
-        std::cout << result.value << std::endl;
-    }
+    return result;
 }
 
 void Parser::parseArithmetic(const std::string& line)
 {
     size_t pos;
-    std::string varName, operand;
+    std::string varName, expression;
 
     if ((pos = line.find("+=")) != std::string::npos)
     {
         varName = line.substr(0, pos);
-        operand = line.substr(pos + 2);
+        expression = line.substr(pos + 2);
     }
     else if ((pos = line.find("-=")) != std::string::npos)
     {
         varName = line.substr(0, pos);
-        operand = line.substr(pos + 2);
+        expression = line.substr(pos + 2);
     }
     else if ((pos = line.find("*=")) != std::string::npos)
     {
         varName = line.substr(0, pos);
-        operand = line.substr(pos + 2);
+        expression = line.substr(pos + 2);
     }
     else if ((pos = line.find("/=")) != std::string::npos)
     {
         varName = line.substr(0, pos);
-        operand = line.substr(pos + 2);
+        expression = line.substr(pos + 2);
     }
     else
     {
@@ -309,11 +316,11 @@ void Parser::parseArithmetic(const std::string& line)
         return;
     }
 
-    // Trim whitespace from variable names and operand
+    // Trim whitespace from variable names and expression
     varName.erase(0, varName.find_first_not_of(" \t\n\r\f\v"));
     varName.erase(varName.find_last_not_of(" \t\n\r\f\v") + 1);
-    operand.erase(0, operand.find_first_not_of(" \t\n\r\f\v"));
-    operand.erase(operand.find_last_not_of(" \t\n\r\f\v") + 1);
+    expression.erase(0, expression.find_first_not_of(" \t\n\r\f\v"));
+    expression.erase(expression.find_last_not_of(" \t\n\r\f\v") + 1);
 
     auto it = variables.find(varName);
     if (it == variables.end())
@@ -322,28 +329,23 @@ void Parser::parseArithmetic(const std::string& line)
         return;
     }
 
-    auto operandIt = variables.find(operand);
-    if (operandIt == variables.end())
-    {
-        std::cerr << "Undefined operand variable: " << operand << std::endl;
-        return;
-    }
+    Variable result = evaluateExpression(expression);
 
     if (line.find("+=") != std::string::npos)
     {
-        it->second.add(operandIt->second);
+        it->second.add(result);
     }
     else if (line.find("-=") != std::string::npos)
     {
-        it->second.subtract(operandIt->second);
+        it->second.subtract(result);
     }
     else if (line.find("*=") != std::string::npos)
     {
-        it->second.multiply(operandIt->second);
+        it->second.multiply(result);
     }
     else if (line.find("/=") != std::string::npos)
     {
-        it->second.divide(operandIt->second);
+        it->second.divide(result);
     }
 }
 

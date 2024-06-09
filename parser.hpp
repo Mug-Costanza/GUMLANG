@@ -19,9 +19,11 @@ namespace GUMLANG
         void parseLine(const std::string& line);
         void parseArithmetic(const std::string& line);
         void parseConcatenation(const std::string& line);
-        void handleExpression(const std::string& content); // Corrected declaration
+        void handleExpression(const std::string& content);
+        Variable evaluateExpression(const std::string& expression);
         bool isNumber(const std::string& s);
         bool hasGumExtension(const std::string& filename);
         bool isGumSourceFile = true;
     };
 }
+
