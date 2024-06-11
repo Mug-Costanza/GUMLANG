@@ -1,10 +1,8 @@
-a 10
-b 20
+type "human"
 
-c " + 30A"
+a 11
+b 12
 
-a += b + c
+if a >= b then type "zombie"
 
-hello " hello"
-
-print a + b + c + hello // output is "30 + 30A hello"
+print type

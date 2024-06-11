@@ -1,143 +1,253 @@
 #include "parser.hpp"
-
 using namespace GUMLANG;
 
 Parser::Parser(const std::string& filename)
+    : lexer(""), currentToken({TokenType::TOKEN_UNKNOWN, "", 0, 0})
 {
     file.open(filename);
 
-    if (!file.is_open())
-    {
+    if (!file.is_open()) {
         std::cerr << "Cannot open source file. Try opening from a different directory." << std::endl;
-    }
-    else
-    {
-        if (!hasGumExtension(filename))
-        {
+    } else {
+        if (!hasGumExtension(filename)) {
             std::cerr << filename + " is not a GUM sourcefile." << std::endl;
             isGumSourceFile = false;
         }
+        std::string source((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        lexer = Lexer(source);
+        advanceToken();
     }
 }
 
-void Parser::InterpretFile()
-{
+void Parser::InterpretFile() {
     if (!file.is_open()) return;
     if (!isGumSourceFile) return;
 
-    std::string line;
-    bool inBlockComment = false;
+    while (currentToken.type != TokenType::TOKEN_EOF) {
+        parseLine();
+    }
+}
 
-    while (std::getline(file, line))
-    {
-        // Trim any leading or trailing whitespace
-        line.erase(0, line.find_first_not_of(" \t\n\r\f\v"));
-        line.erase(line.find_last_not_of(" \t\n\r\f\v") + 1);
+void Parser::advanceToken() {
+    currentToken = lexer.getNextToken();
+}
 
-        // Check for block comments
-        if (inBlockComment)
-        {
-            if (line.find("*/") != std::string::npos)
-            {
-                inBlockComment = false;
-                line = line.substr(line.find("*/") + 2);
-                line.erase(0, line.find_first_not_of(" \t\n\r\f\v"));
+void Parser::expectToken(TokenType type) {
+    if (currentToken.type != type) {
+        std::cerr << "Syntax error: expected token type " << static_cast<int>(type)
+                  << ", but got " << static_cast<int>(currentToken.type) << std::endl;
+        exit(1);
+    }
+    advanceToken();
+}
+
+void Parser::parseIfStatement() {
+    advanceToken(); // consume 'if'
+    std::string condition;
+    while (currentToken.type != TokenType::TOKEN_THEN) {
+        condition += currentToken.value + " ";
+        advanceToken();
+    }
+    advanceToken(); // consume 'then'
+
+    bool conditionResult = evaluateCondition(condition);
+
+    if (currentToken.type == TokenType::TOKEN_LBRACE) {
+        advanceToken(); // consume '{'
+        if (conditionResult) {
+            parseBlock();
+            if (currentToken.type == TokenType::TOKEN_ELSE) {
+                advanceToken(); // consume 'else'
+                if (currentToken.type == TokenType::TOKEN_LBRACE) {
+                    advanceToken(); // consume '{'
+                    skipBlock(); // skip else block
+                } else {
+                    std::cerr << "Syntax error: else must be followed by a block enclosed in braces." << std::endl;
+                }
             }
-            else
-            {
-                continue;
+        } else {
+            skipBlock(); // skip if block
+            if (currentToken.type == TokenType::TOKEN_ELSE) {
+                advanceToken(); // consume 'else'
+                if (currentToken.type == TokenType::TOKEN_LBRACE) {
+                    advanceToken(); // consume '{'
+                    parseBlock(); // parse else block
+                } else {
+                    std::cerr << "Syntax error: else must be followed by a block enclosed in braces." << std::endl;
+                }
             }
         }
-        if (line.find("/*") != std::string::npos)
-        {
-            inBlockComment = true;
-            line = line.substr(0, line.find("/*"));
-            line.erase(0, line.find_first_not_of(" \t\n\r\f\v"));
-            line.erase(line.find_last_not_of(" \t\n\r\f\v") + 1);
-        }
-
-        // Remove inline comments
-        size_t commentPos = line.find("//");
-        if (commentPos != std::string::npos)
-        {
-            line = line.substr(0, commentPos);
-            // Trim the line again after removing comment
-            line.erase(0, line.find_first_not_of(" \t\n\r\f\v"));
-            line.erase(line.find_last_not_of(" \t\n\r\f\v") + 1);
-        }
-
-        // Skip empty lines or lines that were comments
-        if (line.empty())
-        {
-            continue;
-        }
-
-        if (!line.empty())
-        {
-            if (line.find("print") == 0)
-            {
-                parseLine(line);
+    } else {
+        // Handle single-line if statement
+        if (conditionResult) {
+            parseSingleLineStatement();
+        } else {
+            // Skip to the end of the single-line statement
+            while (currentToken.type != TokenType::TOKEN_EOF && currentToken.type != TokenType::TOKEN_EOL) {
+                advanceToken();
             }
-            else if (line.find("+=") != std::string::npos || line.find("-=") != std::string::npos ||
-                     line.find("*=") != std::string::npos || line.find("/=") != std::string::npos)
-            {
-                parseArithmetic(line);
-            }
-            else if (line.find(" += ") != std::string::npos) // Special case for concatenation
-            {
-                parseConcatenation(line);
-            }
-            else
-            {
-                parseLine(line);
+            if (currentToken.type == TokenType::TOKEN_EOL) {
+                advanceToken(); // consume EOL if present
             }
         }
     }
 }
 
-void Parser::parseLine(const std::string& line)
-{
-    if (line.find("print") == 0)
-    {
-        std::string content = line.substr(6); // extract the content to print
-        content.erase(0, content.find_first_not_of(" \t\n\r\f\v")); // trim leading whitespace
-        content.erase(content.find_last_not_of(" \t\n\r\f\v") + 1); // trim trailing whitespace
+void Parser::parsePrintStatement() {
+    advanceToken(); // consume 'print'
+    std::string content;
+    while (currentToken.type != TokenType::TOKEN_EOF && currentToken.type != TokenType::TOKEN_EOL) {
+        content += currentToken.value + " ";
+        advanceToken();
+    }
+    handleExpression(content);
 
-        // Evaluate the expression
-        handleExpression(content);
+    if (currentToken.type == TokenType::TOKEN_EOL) {
+        advanceToken(); // consume EOL if present
+    }
+}
+
+void Parser::parseLine() {
+    if (currentToken.type == TokenType::TOKEN_IF) {
+        parseIfStatement();
+    } else if (currentToken.type == TokenType::TOKEN_PRINT) {
+        parsePrintStatement();
+    } else if (currentToken.type == TokenType::TOKEN_IDENTIFIER) {
+        std::string varName = currentToken.value;
+        advanceToken();
+        if (currentToken.type == TokenType::TOKEN_ASSIGN) {
+            advanceToken(); // consume '='
+            parseAssignment(varName);
+        } else if (currentToken.type == TokenType::TOKEN_NUMBER || currentToken.type == TokenType::TOKEN_STRING) {
+            parseVariableDeclaration(varName);
+        } else {
+            std::cerr << "Syntax error: invalid line format: " << varName << std::endl;
+        }
+    } else if (currentToken.type == TokenType::TOKEN_EOL) {
+        advanceToken(); // consume EOL and continue
+    } else {
+        std::cerr << "Syntax error: unexpected token: " << currentToken.value << std::endl;
+        advanceToken(); // consume the unexpected token and continue
+    }
+}
+
+void Parser::parseSingleLineStatement() {
+    if (currentToken.type == TokenType::TOKEN_PRINT) {
+        parsePrintStatement();
+    } else if (currentToken.type == TokenType::TOKEN_IDENTIFIER) {
+        std::string varName = currentToken.value;
+        advanceToken();
+        if (currentToken.type == TokenType::TOKEN_ASSIGN) {
+            advanceToken(); // consume '='
+            parseAssignment(varName);
+        } else if (currentToken.type == TokenType::TOKEN_NUMBER || currentToken.type == TokenType::TOKEN_STRING) {
+            parseVariableDeclaration(varName);
+        } else {
+            std::cerr << "Syntax error: invalid line format: " << varName << std::endl;
+        }
+    } else {
+        std::cerr << "Syntax error: unexpected token: " << currentToken.value << std::endl;
+        advanceToken(); // consume the unexpected token and continue
+    }
+}
+
+void Parser::parseVariableDeclaration(const std::string& varName) {
+    if (currentToken.type == TokenType::TOKEN_NUMBER) {
+        variables[varName] = Variable(varName, std::stod(currentToken.value));
+    } else if (currentToken.type == TokenType::TOKEN_STRING) {
+        variables[varName] = Variable(varName, currentToken.value);
+    } else {
+        std::cerr << "Syntax error: expected a number or string for variable declaration." << std::endl;
+    }
+    advanceToken();
+}
+
+void Parser::parseAssignment(const std::string& varName) {
+    std::string value;
+    while (currentToken.type != TokenType::TOKEN_EOF && currentToken.type != TokenType::TOKEN_EOL &&
+           currentToken.type != TokenType::TOKEN_LBRACE && currentToken.type != TokenType::TOKEN_RBRACE &&
+           currentToken.type != TokenType::TOKEN_IF && currentToken.type != TokenType::TOKEN_THEN &&
+           currentToken.type != TokenType::TOKEN_ELSE && currentToken.type != TokenType::TOKEN_PRINT) {
+        value += currentToken.value + " ";
+        advanceToken();
+    }
+    if (isNumber(value)) {
+        variables[varName] = Variable(varName, std::stod(value));
+    } else {
+        // Remove surrounding quotes if present
+        if (value.front() == '"' && value.back() == '"') {
+            value = value.substr(1, value.size() - 2);
+        }
+        variables[varName] = Variable(varName, value);
+    }
+}
+
+void Parser::parseBlock() {
+    while (currentToken.type != TokenType::TOKEN_RBRACE) {
+        if (currentToken.type == TokenType::TOKEN_EOF) {
+            std::cerr << "Syntax error: unexpected end of file in block." << std::endl;
+            exit(1);
+        }
+        parseLine();
+    }
+    advanceToken(); // consume '}'
+}
+
+void Parser::skipBlock() {
+    int braceCount = 1; // Starting from the opening brace
+
+    while (braceCount > 0) {
+        advanceToken();
+        if (currentToken.type == TokenType::TOKEN_LBRACE) {
+            braceCount++;
+        } else if (currentToken.type == TokenType::TOKEN_RBRACE) {
+            braceCount--;
+        } else if (currentToken.type == TokenType::TOKEN_EOF) {
+            std::cerr << "Syntax error: unexpected end of file while skipping block." << std::endl;
+            exit(1);
+        }
+    }
+    advanceToken(); // consume the last '}'
+}
+
+bool Parser::evaluateCondition(const std::string& condition)
+{
+    std::istringstream iss(condition);
+    std::string token;
+    std::vector<std::string> tokens;
+    while (std::getline(iss, token, ' '))
+    {
+        if (!token.empty())
+        {
+            tokens.push_back(token);
+        }
+    }
+
+    if (tokens.size() != 3)
+    {
+        std::cerr << "Syntax error: invalid condition: " << condition << std::endl;
+        return false;
+    }
+
+    Variable left = evaluateExpression(tokens[0]);
+    std::string op = tokens[1];
+    Variable right = evaluateExpression(tokens[2]);
+
+    if (left.type == VariableType::NUMBER && right.type == VariableType::NUMBER)
+    {
+        if (op == "==") return left.numberValue == right.numberValue;
+        if (op == "!=") return left.numberValue != right.numberValue;
+        if (op == "<") return left.numberValue < right.numberValue;
+        if (op == "<=") return left.numberValue <= right.numberValue;
+        if (op == ">") return left.numberValue > right.numberValue;
+        if (op == ">=") return left.numberValue >= right.numberValue;
     }
     else
     {
-        // Check for variable initialization
-        size_t pos = line.find(" ");
-        if (pos != std::string::npos)
-        {
-            std::string varName = line.substr(0, pos);
-            std::string value = line.substr(pos + 1);
-
-            varName.erase(0, varName.find_first_not_of(" \t\n\r\f\v")); // trim leading whitespace
-            varName.erase(varName.find_last_not_of(" \t\n\r\f\v") + 1); // trim trailing whitespace
-            value.erase(0, value.find_first_not_of(" \t\n\r\f\v")); // trim leading whitespace
-            value.erase(value.find_last_not_of(" \t\n\r\f\v") + 1); // trim trailing whitespace
-
-            if (isNumber(value))
-            {
-                variables[varName] = Variable(varName, std::stod(value));
-            }
-            else
-            {
-                // Remove surrounding quotes if present
-                if (value.front() == '"' && value.back() == '"') {
-                    value = value.substr(1, value.size() - 2);
-                }
-                variables[varName] = Variable(varName, value);
-            }
-        }
-        else
-        {
-            std::cerr << "Syntax error: invalid line format: " << line << std::endl;
-        }
+        std::cerr << "Unsupported operation for non-numeric types: " << condition << std::endl;
     }
+
+    return false;
 }
 
 void Parser::handleExpression(const std::string& content)
@@ -221,16 +331,6 @@ Variable Parser::evaluateExpression(const std::string& expression)
                         std::string leftValue = (result.type == VariableType::STRING) ? result.value : std::to_string(result.numberValue);
                         std::string rightValue = (var.type == VariableType::STRING) ? var.value : std::to_string(var.numberValue);
 
-                        // Remove trailing zeros from numbers before concatenating
-                        if (result.type == VariableType::NUMBER) {
-                            leftValue.erase(leftValue.find_last_not_of('0') + 1, std::string::npos);
-                            leftValue.erase(leftValue.find_last_not_of('.') + 1, std::string::npos);
-                        }
-                        if (var.type == VariableType::NUMBER) {
-                            rightValue.erase(rightValue.find_last_not_of('0') + 1, std::string::npos);
-                            rightValue.erase(rightValue.find_last_not_of('.') + 1, std::string::npos);
-                        }
-
                         result = Variable("", leftValue + rightValue);
                     }
                 }
@@ -285,124 +385,6 @@ Variable Parser::evaluateExpression(const std::string& expression)
     return result;
 }
 
-void Parser::parseArithmetic(const std::string& line)
-{
-    size_t pos;
-    std::string varName, expression;
-
-    if ((pos = line.find("+=")) != std::string::npos)
-    {
-        varName = line.substr(0, pos);
-        expression = line.substr(pos + 2);
-    }
-    else if ((pos = line.find("-=")) != std::string::npos)
-    {
-        varName = line.substr(0, pos);
-        expression = line.substr(pos + 2);
-    }
-    else if ((pos = line.find("*=")) != std::string::npos)
-    {
-        varName = line.substr(0, pos);
-        expression = line.substr(pos + 2);
-    }
-    else if ((pos = line.find("/=")) != std::string::npos)
-    {
-        varName = line.substr(0, pos);
-        expression = line.substr(pos + 2);
-    }
-    else
-    {
-        std::cerr << "Syntax error: invalid arithmetic operation in line: " << line << std::endl;
-        return;
-    }
-
-    // Trim whitespace from variable names and expression
-    varName.erase(0, varName.find_first_not_of(" \t\n\r\f\v"));
-    varName.erase(varName.find_last_not_of(" \t\n\r\f\v") + 1);
-    expression.erase(0, expression.find_first_not_of(" \t\n\r\f\v"));
-    expression.erase(expression.find_last_not_of(" \t\n\r\f\v") + 1);
-
-    auto it = variables.find(varName);
-    if (it == variables.end())
-    {
-        std::cerr << "Undefined variable: " << varName << std::endl;
-        return;
-    }
-
-    Variable result = evaluateExpression(expression);
-
-    if (line.find("+=") != std::string::npos)
-    {
-        it->second.add(result);
-    }
-    else if (line.find("-=") != std::string::npos)
-    {
-        it->second.subtract(result);
-    }
-    else if (line.find("*=") != std::string::npos)
-    {
-        it->second.multiply(result);
-    }
-    else if (line.find("/=") != std::string::npos)
-    {
-        it->second.divide(result);
-    }
-}
-
-void Parser::parseConcatenation(const std::string& line)
-{
-    size_t pos = line.find(" += ");
-    if (pos == std::string::npos)
-    {
-        std::cerr << "Syntax error: invalid concatenation operation in line: " << line << std::endl;
-        return;
-    }
-
-    std::string varName = line.substr(0, pos);
-    std::string leftOperand, rightOperand;
-    std::string operands = line.substr(pos + 4);
-
-    // Trim whitespace from variable names and operands
-    varName.erase(0, varName.find_first_not_of(" \t\n\r\f\v"));
-    varName.erase(varName.find_last_not_of(" \t\n\r\f\v") + 1);
-    operands.erase(0, operands.find_first_not_of(" \t\n\r\f\v"));
-    operands.erase(operands.find_last_not_of(" \t\n\r\f\v") + 1);
-
-    size_t spacePos = operands.find(" ");
-    if (spacePos == std::string::npos)
-    {
-        std::cerr << "Syntax error: invalid concatenation operation in operands: " << operands << std::endl;
-        return;
-    }
-
-    leftOperand = operands.substr(0, spacePos);
-    rightOperand = operands.substr(spacePos + 1);
-
-    // Trim whitespace from operands
-    leftOperand.erase(0, leftOperand.find_first_not_of(" \t\n\r\f\v"));
-    leftOperand.erase(leftOperand.find_last_not_of(" \t\n\r\f\v") + 1);
-    rightOperand.erase(0, rightOperand.find_first_not_of(" \t\n\r\f\v"));
-    rightOperand.erase(rightOperand.find_last_not_of(" \t\n\r\f\v") + 1);
-
-    auto leftIt = variables.find(leftOperand);
-    auto rightIt = variables.find(rightOperand);
-
-    if (leftIt == variables.end() || rightIt == variables.end())
-    {
-        std::cerr << "Undefined variable(s) in concatenation: " << leftOperand << " or " << rightOperand << std::endl;
-        return;
-    }
-
-    if (leftIt->second.type == VariableType::STRING && rightIt->second.type == VariableType::STRING)
-    {
-        variables[varName] = Variable(varName, leftIt->second.value + rightIt->second.value);
-    }
-    else
-    {
-        std::cerr << "Concatenation error: Both operands must be strings." << std::endl;
-    }
-}
-
 bool Parser::isNumber(const std::string& s)
 {
     char* end = nullptr;
@@ -414,4 +396,3 @@ bool Parser::hasGumExtension(const std::string& filename)
 {
     return filename.size() >= 5 && filename.substr(filename.size() - 4) == ".gum";
 }
-
