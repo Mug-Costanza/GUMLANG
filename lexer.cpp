@@ -37,6 +37,7 @@ Token Lexer::identifier() {
     if (value == "then") return makeToken(TokenType::TOKEN_THEN, value);
     if (value == "else") return makeToken(TokenType::TOKEN_ELSE, value);
     if (value == "print") return makeToken(TokenType::TOKEN_PRINT, value);
+    if (value == "for") return makeToken(TokenType::TOKEN_FOR, value);
     return makeToken(TokenType::TOKEN_IDENTIFIER, value);
 }
 
@@ -99,20 +100,72 @@ Token Lexer::getNextToken() {
         return makeToken(TokenType::TOKEN_RBRACE, "}");
     }
 
-    if (currentChar == '>' || currentChar == '<' || currentChar == '!' || currentChar == '+' || currentChar == '-' || currentChar == '*' || currentChar == '/') {
-        char op = currentChar;
+    if (currentChar == '(') {
+        advance();
+        return makeToken(TokenType::TOKEN_LPAREN, "(");
+    }
+
+    if (currentChar == ')') {
+        advance();
+        return makeToken(TokenType::TOKEN_RPAREN, ")");
+    }
+
+    if (currentChar == '>') {
+        advance();
+        return makeToken(TokenType::TOKEN_OPERATOR, ">");
+    }
+
+    if (currentChar == '<') {
+        advance();
+        return makeToken(TokenType::TOKEN_OPERATOR, "<");
+    }
+
+    if (currentChar == '!') {
         advance();
         if (currentChar == '=') {
-            std::string value(1, op);
-            value += '=';
             advance();
-            return makeToken(TokenType::TOKEN_OPERATOR, value);
+            return makeToken(TokenType::TOKEN_OPERATOR, "!=");
         }
-        return makeToken(TokenType::TOKEN_OPERATOR, std::string(1, op));
+        return makeToken(TokenType::TOKEN_UNKNOWN, "!");
+    }
+
+    if (currentChar == '+') {
+        advance();
+        if (currentChar == '=') {
+            advance();
+            return makeToken(TokenType::TOKEN_OPERATOR_PLUSEQUAL, "+=");
+        }
+        return makeToken(TokenType::TOKEN_OPERATOR, "+");
+    }
+
+    if (currentChar == '-') {
+        advance();
+        if (currentChar == '=') {
+            advance();
+            return makeToken(TokenType::TOKEN_OPERATOR_MINUSEQUAL, "-="); // Modified this line
+        }
+        return makeToken(TokenType::TOKEN_OPERATOR, "-");
+    }
+
+    if (currentChar == '*') {
+        advance();
+        if (currentChar == '=') {
+            advance();
+            return makeToken(TokenType::TOKEN_OPERATOR_STAREQUAL, "*="); // Modified this line
+        }
+        return makeToken(TokenType::TOKEN_OPERATOR, "*");
+    }
+
+    if (currentChar == '/') {
+        advance();
+        if (currentChar == '=') {
+            advance();
+            return makeToken(TokenType::TOKEN_OPERATOR_SLASHEQUAL, "/="); // Modified this line
+        }
+        return makeToken(TokenType::TOKEN_OPERATOR, "/");
     }
 
     std::cerr << "Unexpected character: " << currentChar << " at line " << line << ", column " << column << std::endl;
     advance();
     return makeToken(TokenType::TOKEN_UNKNOWN, std::string(1, currentChar));
 }
-

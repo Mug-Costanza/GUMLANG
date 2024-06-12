@@ -3,6 +3,8 @@
 
 #include <string>
 #include <vector>
+#include <cctype>
+#include <iostream>
 #include "token.hpp"
 
 class Lexer {

@@ -1,8 +1,11 @@
-type "human"
+a 5
+b 10
 
-a 11
-b 12
+c "linux"
+d "windows"
 
-if a >= b then type "zombie"
+print a
 
-print type
+print c + d + a + b
+
+print a

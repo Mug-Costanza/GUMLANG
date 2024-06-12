@@ -28,6 +28,17 @@ void Parser::InterpretFile() {
     }
 }
 
+void Parser::parseBlock() {
+    while (currentToken.type != TokenType::TOKEN_RBRACE) {
+        if (currentToken.type == TokenType::TOKEN_EOF) {
+            std::cerr << "Syntax error: unexpected end of file in block." << std::endl;
+            exit(1);
+        }
+        parseLine();
+    }
+    advanceToken(); // consume '}'
+}
+
 void Parser::advanceToken() {
     currentToken = lexer.getNextToken();
 }
@@ -93,6 +104,68 @@ void Parser::parseIfStatement() {
     }
 }
 
+void Parser::parseForLoop() {
+    advanceToken(); // consume 'for'
+    if (currentToken.type != TokenType::TOKEN_NUMBER) {
+        std::cerr << "Syntax error: expected a number of cycles for 'for' loop, but got: " << currentToken.value << std::endl;
+        exit(1);
+    }
+
+    int cycles = 0;
+    try {
+        cycles = std::stoi(currentToken.value);
+    } catch (const std::invalid_argument& e) {
+        std::cerr << "Syntax error: invalid number of cycles for 'for' loop: " << currentToken.value << std::endl;
+        exit(1);
+    }
+
+    advanceToken(); // consume the cycle amount
+    expectToken(TokenType::TOKEN_IDENTIFIER);
+    std::string loopVar = currentToken.value;
+    advanceToken(); // consume the loop variable
+
+    expectToken(TokenType::TOKEN_LBRACE);
+    advanceToken(); // consume '{'
+
+    std::vector<std::string> loopBody;
+    std::string loopLine;
+
+    while (currentToken.type != TokenType::TOKEN_RBRACE) {
+        if (currentToken.type == TokenType::TOKEN_EOF) {
+            std::cerr << "Syntax error: unexpected end of file in 'for' loop." << std::endl;
+            exit(1);
+        }
+        loopLine += currentToken.value + " ";
+        if (currentToken.type == TokenType::TOKEN_EOL) {
+            loopBody.push_back(loopLine);
+            loopLine.clear();
+        }
+        advanceToken();
+    }
+    advanceToken(); // consume '}'
+
+    for (int i = 0; i < cycles; ++i) {
+        for (const auto& line : loopBody) {
+            std::istringstream iss(line);
+            std::string token;
+            while (iss >> token) {
+                if (token == loopVar) {
+                    continue;
+                }
+                std::string newLine = token;
+                while (iss >> token) {
+                    newLine += " " + token;
+                }
+                handleExpression(newLine);
+            }
+        }
+    }
+
+    if (currentToken.type == TokenType::TOKEN_EOL) {
+        advanceToken(); // consume EOL if present
+    }
+}
+
 void Parser::parsePrintStatement() {
     advanceToken(); // consume 'print'
     std::string content;
@@ -112,12 +185,26 @@ void Parser::parseLine() {
         parseIfStatement();
     } else if (currentToken.type == TokenType::TOKEN_PRINT) {
         parsePrintStatement();
+    } else if (currentToken.type == TokenType::TOKEN_FOR) {
+        parseForLoop();
     } else if (currentToken.type == TokenType::TOKEN_IDENTIFIER) {
         std::string varName = currentToken.value;
         advanceToken();
         if (currentToken.type == TokenType::TOKEN_ASSIGN) {
             advanceToken(); // consume '='
             parseAssignment(varName);
+        } else if (currentToken.type == TokenType::TOKEN_OPERATOR_PLUSEQUAL) { // check for += operator
+            advanceToken(); // consume '+='
+            parseAdditionAssignment(varName);
+        } else if (currentToken.type == TokenType::TOKEN_OPERATOR_MINUSEQUAL) { // check for -= operator
+            advanceToken(); // consume '-='
+            parseSubtractionAssignment(varName);
+        } else if (currentToken.type == TokenType::TOKEN_OPERATOR_STAREQUAL) { // check for *= operator
+            advanceToken(); // consume '*='
+            parseMultiplicationAssignment(varName);
+        } else if (currentToken.type == TokenType::TOKEN_OPERATOR_SLASHEQUAL) { // check for /= operator
+            advanceToken(); // consume '/='
+            parseDivisionAssignment(varName);
         } else if (currentToken.type == TokenType::TOKEN_NUMBER || currentToken.type == TokenType::TOKEN_STRING) {
             parseVariableDeclaration(varName);
         } else {
@@ -140,6 +227,18 @@ void Parser::parseSingleLineStatement() {
         if (currentToken.type == TokenType::TOKEN_ASSIGN) {
             advanceToken(); // consume '='
             parseAssignment(varName);
+        } else if (currentToken.type == TokenType::TOKEN_OPERATOR_PLUSEQUAL) {
+            advanceToken(); // consume '+='
+            parseAdditionAssignment(varName);
+        } else if (currentToken.type == TokenType::TOKEN_OPERATOR_MINUSEQUAL) { // check for -= operator
+            advanceToken(); // consume '-='
+            parseSubtractionAssignment(varName);
+        } else if (currentToken.type == TokenType::TOKEN_OPERATOR_STAREQUAL) { // check for *= operator
+            advanceToken(); // consume '*='
+            parseMultiplicationAssignment(varName);
+        } else if (currentToken.type == TokenType::TOKEN_OPERATOR_SLASHEQUAL) { // check for /= operator
+            advanceToken(); // consume '/='
+            parseDivisionAssignment(varName);
         } else if (currentToken.type == TokenType::TOKEN_NUMBER || currentToken.type == TokenType::TOKEN_STRING) {
             parseVariableDeclaration(varName);
         } else {
@@ -167,7 +266,7 @@ void Parser::parseAssignment(const std::string& varName) {
     while (currentToken.type != TokenType::TOKEN_EOF && currentToken.type != TokenType::TOKEN_EOL &&
            currentToken.type != TokenType::TOKEN_LBRACE && currentToken.type != TokenType::TOKEN_RBRACE &&
            currentToken.type != TokenType::TOKEN_IF && currentToken.type != TokenType::TOKEN_THEN &&
-           currentToken.type != TokenType::TOKEN_ELSE && currentToken.type != TokenType::TOKEN_PRINT) {
+           currentToken.type != TokenType::TOKEN_ELSE && currentToken.type != TokenType::TOKEN_PRINT && currentToken.type != TokenType::TOKEN_FOR) {
         value += currentToken.value + " ";
         advanceToken();
     }
@@ -182,15 +281,94 @@ void Parser::parseAssignment(const std::string& varName) {
     }
 }
 
-void Parser::parseBlock() {
-    while (currentToken.type != TokenType::TOKEN_RBRACE) {
-        if (currentToken.type == TokenType::TOKEN_EOF) {
-            std::cerr << "Syntax error: unexpected end of file in block." << std::endl;
-            exit(1);
-        }
-        parseLine();
+void Parser::parseAdditionAssignment(const std::string& varName) {
+    if (variables.find(varName) == variables.end()) {
+        std::cerr << "Undefined variable: " << varName << std::endl;
+        return;
     }
-    advanceToken(); // consume '}'
+
+    std::string value;
+    while (currentToken.type != TokenType::TOKEN_EOF && currentToken.type != TokenType::TOKEN_EOL) {
+        value += currentToken.value + " ";
+        advanceToken();
+    }
+
+    Variable right = evaluateExpression(value);
+
+    if (variables[varName].type == VariableType::NUMBER && right.type == VariableType::NUMBER) {
+        variables[varName].numberValue += right.numberValue;
+    } else if (variables[varName].type == VariableType::STRING && right.type == VariableType::STRING) {
+        variables[varName].value += right.value;
+    } else {
+        std::cerr << "Type error: incompatible types for += operation." << std::endl;
+    }
+}
+
+void Parser::parseSubtractionAssignment(const std::string& varName) {
+    if (variables.find(varName) == variables.end()) {
+        std::cerr << "Undefined variable: " << varName << std::endl;
+        return;
+    }
+
+    std::string value;
+    while (currentToken.type != TokenType::TOKEN_EOF && currentToken.type != TokenType::TOKEN_EOL) {
+        value += currentToken.value + " ";
+        advanceToken();
+    }
+
+    Variable right = evaluateExpression(value);
+
+    if (variables[varName].type == VariableType::NUMBER && right.type == VariableType::NUMBER) {
+        variables[varName].numberValue -= right.numberValue;
+    } else {
+        std::cerr << "Type error: incompatible types for -= operation." << std::endl;
+    }
+}
+
+void Parser::parseMultiplicationAssignment(const std::string& varName) {
+    if (variables.find(varName) == variables.end()) {
+        std::cerr << "Undefined variable: " << varName << std::endl;
+        return;
+    }
+
+    std::string value;
+    while (currentToken.type != TokenType::TOKEN_EOF && currentToken.type != TokenType::TOKEN_EOL) {
+        value += currentToken.value + " ";
+        advanceToken();
+    }
+
+    Variable right = evaluateExpression(value);
+
+    if (variables[varName].type == VariableType::NUMBER && right.type == VariableType::NUMBER) {
+        variables[varName].numberValue *= right.numberValue;
+    } else {
+        std::cerr << "Type error: incompatible types for *= operation." << std::endl;
+    }
+}
+
+void Parser::parseDivisionAssignment(const std::string& varName) {
+    if (variables.find(varName) == variables.end()) {
+        std::cerr << "Undefined variable: " << varName << std::endl;
+        return;
+    }
+
+    std::string value;
+    while (currentToken.type != TokenType::TOKEN_EOF && currentToken.type != TokenType::TOKEN_EOL) {
+        value += currentToken.value + " ";
+        advanceToken();
+    }
+
+    Variable right = evaluateExpression(value);
+
+    if (variables[varName].type == VariableType::NUMBER && right.type == VariableType::NUMBER) {
+        if (right.numberValue != 0) {
+            variables[varName].numberValue /= right.numberValue;
+        } else {
+            std::cerr << "Division by zero error" << std::endl;
+        }
+    } else {
+        std::cerr << "Type error: incompatible types for /= operation." << std::endl;
+    }
 }
 
 void Parser::skipBlock() {
@@ -256,7 +434,15 @@ void Parser::handleExpression(const std::string& content)
 
     if (result.type == VariableType::NUMBER)
     {
-        std::cout << result.numberValue << std::endl;
+        // Check if the number is an integer
+        if (result.numberValue == static_cast<int>(result.numberValue))
+        {
+            std::cout << static_cast<int>(result.numberValue) << std::endl;
+        }
+        else
+        {
+            std::cout << result.numberValue << std::endl;
+        }
     }
     else
     {
@@ -264,129 +450,103 @@ void Parser::handleExpression(const std::string& content)
     }
 }
 
-Variable Parser::evaluateExpression(const std::string& expression)
-{
+Variable Parser::evaluateExpression(const std::string& expression) {
     std::istringstream iss(expression);
-    std::string token;
-    std::vector<std::string> tokens;
-    while (std::getline(iss, token, ' '))
-    {
-        if (!token.empty())
-        {
-            tokens.push_back(token);
-        }
-    }
-
-    Variable result;
-    bool first = true;
-    std::string op;
-
-    for (const auto& token : tokens)
-    {
-        if (token == "+" || token == "-" || token == "*" || token == "/")
-        {
-            op = token;
-        }
-        else
-        {
-            Variable var;
-            if (isNumber(token))
-            {
-                var = Variable(token, std::stod(token));
-            }
-            else if (token.front() == '"' && token.back() == '"')
-            {
-                // Handle string literals
-                var = Variable(token, token.substr(1, token.size() - 2));
-            }
-            else
-            {
-                auto it = variables.find(token);
-                if (it != variables.end())
-                {
-                    var = it->second;
-                }
-                else
-                {
-                    std::cerr << "Undefined variable: " << token << std::endl;
-                    return Variable("", 0.0);
-                }
-            }
-
-            if (first)
-            {
-                result = var;
-                first = false;
-            }
-            else
-            {
-                if (op == "+")
-                {
-                    if (result.type == VariableType::NUMBER && var.type == VariableType::NUMBER)
-                    {
-                        result.numberValue += var.numberValue;
-                    }
-                    else
-                    {
-                        std::string leftValue = (result.type == VariableType::STRING) ? result.value : std::to_string(result.numberValue);
-                        std::string rightValue = (var.type == VariableType::STRING) ? var.value : std::to_string(var.numberValue);
-
-                        result = Variable("", leftValue + rightValue);
-                    }
-                }
-                else if (op == "-")
-                {
-                    if (result.type == VariableType::NUMBER && var.type == VariableType::NUMBER)
-                    {
-                        result.numberValue -= var.numberValue;
-                    }
-                    else
-                    {
-                        std::cerr << "Unsupported operation for non-numeric types: " << result.value << " - " << var.value << std::endl;
-                        return Variable("", 0.0);
-                    }
-                }
-                else if (op == "*")
-                {
-                    if (result.type == VariableType::NUMBER && var.type == VariableType::NUMBER)
-                    {
-                        result.numberValue *= var.numberValue;
-                    }
-                    else
-                    {
-                        std::cerr << "Unsupported operation for non-numeric types: " << result.value << " * " << var.value << std::endl;
-                        return Variable("", 0.0);
-                    }
-                }
-                else if (op == "/")
-                {
-                    if (result.type == VariableType::NUMBER && var.type == VariableType::NUMBER)
-                    {
-                        if (var.numberValue != 0)
-                        {
-                            result.numberValue /= var.numberValue;
-                        }
-                        else
-                        {
-                            std::cerr << "Division by zero error" << std::endl;
-                            return Variable("", 0.0);
-                        }
-                    }
-                    else
-                    {
-                        std::cerr << "Unsupported operation for non-numeric types: " << result.value << " / " << var.value << std::endl;
-                        return Variable("", 0.0);
-                    }
-                }
-            }
-        }
-    }
-
-    return result;
+    return parseExpression(iss);
 }
 
-bool Parser::isNumber(const std::string& s)
-{
+Variable Parser::parseExpression(std::istringstream& iss) {
+    Variable left = parseTerm(iss);
+    while (true) {
+        std::string token;
+        iss >> token;
+        if (token == "+" || token == "-") {
+            Variable right = parseTerm(iss);
+            if (left.type == VariableType::NUMBER && right.type == VariableType::NUMBER) {
+                if (token == "+") {
+                    left.numberValue += right.numberValue;
+                } else {
+                    left.numberValue -= right.numberValue;
+                }
+            } else {
+                std::string leftValue = (left.type == VariableType::STRING) ? left.value : formatNumber(left.numberValue);
+                std::string rightValue = (right.type == VariableType::STRING) ? right.value : formatNumber(right.numberValue);
+                left = Variable("", leftValue + rightValue);
+            }
+        } else {
+            iss.putback(token[0]);
+            break;
+        }
+    }
+    return left;
+}
+
+Variable Parser::parseTerm(std::istringstream& iss) {
+    Variable left = parseFactor(iss);
+    while (true) {
+        std::string token;
+        iss >> token;
+        if (token == "*" || token == "/") {
+            Variable right = parseFactor(iss);
+            if (left.type == VariableType::NUMBER && right.type == VariableType::NUMBER) {
+                if (token == "*") {
+                    left.numberValue *= right.numberValue;
+                } else {
+                    if (right.numberValue != 0) {
+                        left.numberValue /= right.numberValue;
+                    } else {
+                        std::cerr << "Division by zero error" << std::endl;
+                        return Variable("", 0.0);
+                    }
+                }
+            } else {
+                std::cerr << "Unsupported operation for non-numeric types: " << left.value << " " << token << " " << right.value << std::endl;
+                return Variable("", 0.0);
+            }
+        } else {
+            iss.putback(token[0]);
+            break;
+        }
+    }
+    return left;
+}
+
+Variable Parser::parseFactor(std::istringstream& iss) {
+    std::string token;
+    iss >> token;
+    if (isNumber(token)) {
+        return Variable(token, std::stod(token));
+    } else if (token == "(") {
+        Variable result = parseExpression(iss);
+        iss >> token; // Expecting ')'
+        if (token != ")") {
+            std::cerr << "Syntax error: expected ')' but got " << token << std::endl;
+            return Variable("", 0.0);
+        }
+        return result;
+    } else {
+        auto it = variables.find(token);
+        if (it != variables.end()) {
+            return it->second;
+        } else {
+            std::cerr << "Undefined variable: " << token << std::endl;
+            return Variable("", 0.0);
+        }
+    }
+}
+
+std::string Parser::formatNumber(double number) {
+    std::ostringstream oss;
+    // Check if the number is an integer
+    if (number == static_cast<int>(number)) {
+        oss << static_cast<int>(number);
+    } else {
+        oss << std::fixed << std::setprecision(2) << number;
+    }
+    return oss.str();
+}
+
+bool Parser::isNumber(const std::string& s) {
     char* end = nullptr;
     double val = std::strtod(s.c_str(), &end);
     return end != s.c_str() && *end == '\0' && val != HUGE_VAL;
@@ -396,3 +556,4 @@ bool Parser::hasGumExtension(const std::string& filename)
 {
     return filename.size() >= 5 && filename.substr(filename.size() - 4) == ".gum";
 }
+

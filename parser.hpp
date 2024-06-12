@@ -8,6 +8,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <iomanip>
 #include <unordered_map>
 
 namespace GUMLANG {
@@ -20,19 +21,32 @@ public:
 private:
     void parseIfStatement();
     void parseSingleLineStatement();
+    void parseForLoop();
     void parsePrintStatement();
+    void parseAdditionAssignment(const std::string& varName);
+    void parseSubtractionAssignment(const std::string& varName);
+    void parseMultiplicationAssignment(const std::string& varName);
+    void parseDivisionAssignment(const std::string& varName);
     void parseLine();
     void parseBlock();
     void skipBlock();
     bool evaluateCondition(const std::string& condition);
     Variable evaluateExpression(const std::string& expression);
+    Variable parseExpression(std::istringstream& iss);
+    Variable parseTerm(std::istringstream& iss);
+    Variable parseFactor(std::istringstream& iss);
     void handleExpression(const std::string& content);
 
     void parseVariableDeclaration(const std::string& varName);
     void parseAssignment(const std::string& varName);
 
+    std::string formatNumber(double number);
     bool isNumber(const std::string& s);
     bool hasGumExtension(const std::string& filename);
+    
+    Variable parseVariable();
+    Variable parseExpression();
+    Variable parse();
 
     std::ifstream file;
     Lexer lexer;
