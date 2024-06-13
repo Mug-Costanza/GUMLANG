@@ -215,12 +215,20 @@ void Parser::parseForLoop() {
 
 void Parser::parsePrintStatement() {
     advanceToken(); // consume 'print'
-    std::string content;
-    while (currentToken.type != TokenType::TOKEN_EOF && currentToken.type != TokenType::TOKEN_EOL) {
-        content += currentToken.value + " ";
-        advanceToken();
+
+    if (currentToken.type == TokenType::TOKEN_STRING) {
+        // Handle printing a string literal
+        std::cout << currentToken.value << std::endl;
+        advanceToken(); // consume the string token
+    } else {
+        // Handle expression printing
+        std::string content;
+        while (currentToken.type != TokenType::TOKEN_EOF && currentToken.type != TokenType::TOKEN_EOL) {
+            content += currentToken.value + " ";
+            advanceToken();
+        }
+        handleExpression(content);
     }
-    handleExpression(content);
 
     if (currentToken.type == TokenType::TOKEN_EOL) {
         advanceToken(); // consume EOL if present
@@ -726,3 +734,4 @@ bool Parser::hasGumExtension(const std::string& filename)
 {
     return filename.size() >= 5 && filename.substr(filename.size() - 4) == ".gum";
 }
+

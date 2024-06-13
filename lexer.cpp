@@ -31,7 +31,6 @@ void Lexer::skipSingleLineComment() {
     while (currentChar != '\n' && currentChar != '\0') {
         advance();
     }
-    // Skip the newline character at the end of the comment
     if (currentChar == '\n') {
         advance();
     }
@@ -60,7 +59,6 @@ Token Lexer::identifier() {
     if (value == "if") return makeToken(TokenType::TOKEN_IF, value);
     if (value == "then") return makeToken(TokenType::TOKEN_THEN, value);
     if (value == "else") {
-        // Check for "else if" combination
         skipWhitespace();
         if (currentChar == 'i') {
             advance();
@@ -117,14 +115,13 @@ Token Lexer::getNextToken() {
             if (currentChar == '/') {
                 skipSingleLineComment();
                 skipWhitespace();
-                continue; // Restart tokenization after skipping the comment
+                continue;
             } else if (currentChar == '*') {
                 advance();
                 skipMultiLineComment();
                 skipWhitespace();
-                continue; // Restart tokenization after skipping the comment
+                continue;
             }
-            // This case is for the division operator
             return makeToken(TokenType::TOKEN_OPERATOR, "/");
         }
 
