@@ -27,6 +27,30 @@ void Lexer::skipWhitespace() {
     }
 }
 
+void Lexer::skipSingleLineComment() {
+    while (currentChar != '\n' && currentChar != '\0') {
+        advance();
+    }
+    // Skip the newline character at the end of the comment
+    if (currentChar == '\n') {
+        advance();
+    }
+}
+
+void Lexer::skipMultiLineComment() {
+    while (currentChar != '\0') {
+        if (currentChar == '*') {
+            advance();
+            if (currentChar == '/') {
+                advance();
+                break;
+            }
+        } else {
+            advance();
+        }
+    }
+}
+
 Token Lexer::identifier() {
     std::string value;
     while (isalnum(currentChar) || currentChar == '_') {
@@ -80,117 +104,126 @@ Token Lexer::makeToken(TokenType type, const std::string& value) {
 Token Lexer::getNextToken() {
     skipWhitespace();
 
-    if (currentChar == '\0') return makeToken(TokenType::TOKEN_EOF, "");
+    while (true) {
+        if (currentChar == '\0') return makeToken(TokenType::TOKEN_EOF, "");
 
-    if (currentChar == '\n') {
-        advance();
-        return makeToken(TokenType::TOKEN_EOL, "\\n");
-    }
+        if (currentChar == '\n') {
+            advance();
+            return makeToken(TokenType::TOKEN_EOL, "\\n");
+        }
 
-    if (isalpha(currentChar) || currentChar == '_') return identifier();
+        if (currentChar == '/') {
+            advance();
+            if (currentChar == '/') {
+                skipSingleLineComment();
+                skipWhitespace();
+                continue; // Restart tokenization after skipping the comment
+            } else if (currentChar == '*') {
+                advance();
+                skipMultiLineComment();
+                skipWhitespace();
+                continue; // Restart tokenization after skipping the comment
+            }
+            // This case is for the division operator
+            return makeToken(TokenType::TOKEN_OPERATOR, "/");
+        }
 
-    if (isdigit(currentChar)) return number();
+        if (isalpha(currentChar) || currentChar == '_') return identifier();
 
-    if (currentChar == '"') return string();
+        if (isdigit(currentChar)) return number();
 
-    if (currentChar == '=') {
-        advance();
+        if (currentChar == '"') return string();
+
         if (currentChar == '=') {
             advance();
-            return makeToken(TokenType::TOKEN_OPERATOR, "==");
+            if (currentChar == '=') {
+                advance();
+                return makeToken(TokenType::TOKEN_OPERATOR, "==");
+            }
+            return makeToken(TokenType::TOKEN_ASSIGN, "=");
         }
-        return makeToken(TokenType::TOKEN_ASSIGN, "=");
-    }
 
-    if (currentChar == '{') {
-        advance();
-        return makeToken(TokenType::TOKEN_LBRACE, "{");
-    }
-
-    if (currentChar == '}') {
-        advance();
-        return makeToken(TokenType::TOKEN_RBRACE, "}");
-    }
-
-    if (currentChar == '(') {
-        advance();
-        return makeToken(TokenType::TOKEN_LPAREN, "(");
-    }
-
-    if (currentChar == ')') {
-        advance();
-        return makeToken(TokenType::TOKEN_RPAREN, ")");
-    }
-
-    if (currentChar == '>') {
-        advance();
-        return makeToken(TokenType::TOKEN_OPERATOR, ">");
-    }
-
-    if (currentChar == '<') {
-        advance();
-        return makeToken(TokenType::TOKEN_OPERATOR, "<");
-    }
-
-    if (currentChar == '!') {
-        advance();
-        if (currentChar == '=') {
+        if (currentChar == '{') {
             advance();
-            return makeToken(TokenType::TOKEN_OPERATOR, "!=");
+            return makeToken(TokenType::TOKEN_LBRACE, "{");
         }
-        return makeToken(TokenType::TOKEN_UNKNOWN, "!");
-    }
 
-    if (currentChar == '+') {
-        advance();
-        if (currentChar == '=') {
+        if (currentChar == '}') {
             advance();
-            return makeToken(TokenType::TOKEN_OPERATOR_PLUSEQUAL, "+=");
+            return makeToken(TokenType::TOKEN_RBRACE, "}");
         }
+
+        if (currentChar == '(') {
+            advance();
+            return makeToken(TokenType::TOKEN_LPAREN, "(");
+        }
+
+        if (currentChar == ')') {
+            advance();
+            return makeToken(TokenType::TOKEN_RPAREN, ")");
+        }
+
+        if (currentChar == '>') {
+            advance();
+            return makeToken(TokenType::TOKEN_OPERATOR, ">");
+        }
+
+        if (currentChar == '<') {
+            advance();
+            return makeToken(TokenType::TOKEN_OPERATOR, "<");
+        }
+
+        if (currentChar == '!') {
+            advance();
+            if (currentChar == '=') {
+                advance();
+                return makeToken(TokenType::TOKEN_OPERATOR, "!=");
+            }
+            return makeToken(TokenType::TOKEN_UNKNOWN, "!");
+        }
+
         if (currentChar == '+') {
             advance();
-            return makeToken(TokenType::TOKEN_OPERATOR_INCREMENT, "++");
+            if (currentChar == '=') {
+                advance();
+                return makeToken(TokenType::TOKEN_OPERATOR_PLUSEQUAL, "+=");
+            }
+            if (currentChar == '+') {
+                advance();
+                return makeToken(TokenType::TOKEN_OPERATOR_INCREMENT, "++");
+            }
+            return makeToken(TokenType::TOKEN_OPERATOR, "+");
         }
-        return makeToken(TokenType::TOKEN_OPERATOR, "+");
-    }
 
-    if (currentChar == '-') {
-        advance();
-        if (currentChar == '=') {
-            advance();
-            return makeToken(TokenType::TOKEN_OPERATOR_MINUSEQUAL, "-=");
-        }
         if (currentChar == '-') {
             advance();
-            return makeToken(TokenType::TOKEN_OPERATOR_DECREMENT, "--");
+            if (currentChar == '=') {
+                advance();
+                return makeToken(TokenType::TOKEN_OPERATOR_MINUSEQUAL, "-=");
+            }
+            if (currentChar == '-') {
+                advance();
+                return makeToken(TokenType::TOKEN_OPERATOR_DECREMENT, "--");
+            }
+            return makeToken(TokenType::TOKEN_OPERATOR, "-");
         }
-        return makeToken(TokenType::TOKEN_OPERATOR, "-");
-    }
 
-    if (currentChar == '*') {
-        advance();
-        if (currentChar == '=') {
+        if (currentChar == '*') {
             advance();
-            return makeToken(TokenType::TOKEN_OPERATOR_STAREQUAL, "*=");
+            if (currentChar == '=') {
+                advance();
+                return makeToken(TokenType::TOKEN_OPERATOR_STAREQUAL, "*=");
+            }
+            return makeToken(TokenType::TOKEN_OPERATOR, "*");
         }
-        return makeToken(TokenType::TOKEN_OPERATOR, "*");
-    }
 
-    if (currentChar == '/') {
-        advance();
-        if (currentChar == '=') {
+        if (currentChar == ',') {
             advance();
-            return makeToken(TokenType::TOKEN_OPERATOR_SLASHEQUAL, "/=");
+            return makeToken(TokenType::TOKEN_COMMA, ",");
         }
-        return makeToken(TokenType::TOKEN_OPERATOR, "/");
-    }
 
-    if (currentChar == ',') {
-        advance(); // Don't forget to advance the lexer here
-        return makeToken(TokenType::TOKEN_COMMA, ",");
+        std::cerr << "Unexpected character: " << currentChar << " at line " << line << ", column " << column << std::endl;
+        advance();
+        return makeToken(TokenType::TOKEN_UNKNOWN, std::string(1, currentChar));
     }
-
-    std::cerr << "Unexpected character: " << currentChar << " at line " << line << ", column " << column << std::endl;
-    advance();
-    return makeToken(TokenType::TOKEN_UNKNOWN, std::string(1, currentChar));
 }

@@ -21,6 +21,8 @@ private:
 
     void advance();
     void skipWhitespace();
+    void skipSingleLineComment();
+    void skipMultiLineComment();
     Token identifier();
     Token number();
     Token string();

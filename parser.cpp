@@ -140,7 +140,6 @@ void Parser::handleElseIfOrElse() {
     }
 }
 
-
 void Parser::parseForLoop() {
     advanceToken(); // consume 'for'
     if (currentToken.type != TokenType::TOKEN_NUMBER) {
@@ -646,12 +645,10 @@ bool Parser::isNumber(const std::string& s) {
 
 void Parser::parseRandom() {
     advanceToken(); // consume 'random'
-    if (currentToken.type != TokenType::TOKEN_LPAREN) {
-        std::cerr << "Syntax error: expected '(' after 'random'" << std::endl;
+    if (currentToken.type != TokenType::TOKEN_NUMBER) {
+        std::cerr << "Syntax error: expected a number as the first argument to 'random'" << std::endl;
         exit(1);
     }
-
-    advanceToken(); // consume '('
 
     int minValue = 0;
     int maxValue = 0;
@@ -665,12 +662,10 @@ void Parser::parseRandom() {
         exit(1);
     }
 
-    if (currentToken.type != TokenType::TOKEN_COMMA) {
-        std::cerr << "Syntax error: expected ',' after first argument to 'random'" << std::endl;
+    if (currentToken.type != TokenType::TOKEN_NUMBER) {
+        std::cerr << "Syntax error: expected a number as the second argument to 'random'" << std::endl;
         exit(1);
     }
-
-    advanceToken(); // consume ','
 
     // Parse max value
     if (currentToken.type == TokenType::TOKEN_NUMBER) {
@@ -680,13 +675,6 @@ void Parser::parseRandom() {
         std::cerr << "Syntax error: expected a number as the second argument to 'random'" << std::endl;
         exit(1);
     }
-
-    if (currentToken.type != TokenType::TOKEN_RPAREN) {
-        std::cerr << "Syntax error: expected ')' after arguments to 'random'" << std::endl;
-        exit(1);
-    }
-
-    advanceToken(); // consume ')'
 
     // Generate the random number
     int randomNumber = generateRandomNumber(minValue, maxValue);
@@ -698,15 +686,9 @@ void Parser::parseRandom() {
 }
 
 Variable Parser::parseRandomFunction(std::istringstream& iss) {
-    std::string token;
-    iss >> token;
-    if (token != "(") {
-        std::cerr << "Syntax error: expected '(' after 'random'" << std::endl;
-        return Variable("", 0.0);
-    }
-
     int minValue = 0;
     int maxValue = 0;
+    std::string token;
 
     // Parse min value
     iss >> token;
@@ -717,24 +699,12 @@ Variable Parser::parseRandomFunction(std::istringstream& iss) {
         return Variable("", 0.0);
     }
 
-    iss >> token;
-    if (token != ",") {
-        std::cerr << "Syntax error: expected ',' after first argument to 'random'" << std::endl;
-        return Variable("", 0.0);
-    }
-
     // Parse max value
     iss >> token;
     if (isNumber(token)) {
         maxValue = std::stoi(token);
     } else {
         std::cerr << "Syntax error: expected a number as the second argument to 'random'" << std::endl;
-        return Variable("", 0.0);
-    }
-
-    iss >> token;
-    if (token != ")") {
-        std::cerr << "Syntax error: expected ')' after arguments to 'random'" << std::endl;
         return Variable("", 0.0);
     }
 
@@ -756,4 +726,3 @@ bool Parser::hasGumExtension(const std::string& filename)
 {
     return filename.size() >= 5 && filename.substr(filename.size() - 4) == ".gum";
 }
-
