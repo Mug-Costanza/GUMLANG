@@ -1,11 +1,87 @@
-a 5
-b 10
+a 0
 
-c "linux"
-d "windows"
+a += random(1, 27)
 
-print a
+phrase1 "VECTOR!"
+phrase2 "Oh YEEAHH!"
+phrase3 "Oh YEESSS!"
+phrase4 "Pirahna gun!"
+phrase5 "Squid launcher!"
+phrase6 "Victor was my nerd name. Now, my name is VECTOR!"
+phrase7 "H-he punched my SHARK!"
+phrase8 "Oh poop."
+phrase9 "These are not pajamas. It's my warm-up suit."
+phrase10 "THEY ARE NOT PAJAMAS!"
+phrase11 "Zip it, happy meal."
+phrase12 "Name one person that has ordered as many cookies as me."
+phrase13 "BOOYA!"
+phrase14 "Now maybe you'll think twice before you FREEZE SOMEONE'S HEAD!"
+phrase15 "I'm committing crimes -- with both direction -- and -- MAGNATUDE!!!"
+phrase16 "...super cool stuff you wouldn't understand."
+phrase17 "-It's a mathematical term -- a quantity represented by an arrow with both direction and magnatude."
+phrase18 "Oh... a teeny-tiny toilet."
+phrase19 "Take THAT!!!"
+phrase20 "Hey Gru, try this on for SIZE!"
+phrase21 "Oh... adorable."
+phrase22 "Curse you TINY TOILET!!!"
+phrase23 "Get SHRUNK tiny mouthwash!"
+phrase24 "You've done been shrunk!"
+phrase25 "Welcome back to the Fortress of Vectortude."
+phrase26 "You just got VECTORED!"
+phrase27 "UNPREDICTABLE!"
 
-print c + d + a + b
-
-print a
+if a == 1 {
+    print phrase1
+} else if a == 2 {
+    print phrase2
+} else if a == 3 {
+    print phrase3
+} else if a == 4 {
+    print phrase4
+} else if a == 5 {
+    print phrase5
+} else if a == 6 {
+    print phrase6
+} else if a == 7 {
+    print phrase7
+} else if a == 8 {
+    print phrase8
+} else if a == 9 {
+    print phrase9
+} else if a == 10 {
+    print phrase10
+} else if a == 11 {
+    print phrase11
+} else if a == 12 {
+    print phrase12
+} else if a == 13 {
+    print phrase13
+} else if a == 14 {
+    print phrase14
+} else if a == 15 {
+    print phrase15
+} else if a == 16 {
+    print phrase16
+} else if a == 17 {
+    print phrase17
+} else if a == 18 {
+    print phrase18
+} else if a == 19 {
+    print phrase19
+} else if a == 20 {
+    print phrase20
+} else if a == 21 {
+    print phrase21
+} else if a == 22 {
+    print phrase22
+} else if a == 23 {
+    print phrase23
+} else if a == 24 {
+    print phrase24
+} else if a == 25 {
+    print phrase25
+} else if a == 26 {
+    print phrase26
+} else if a == 27 {
+    print phrase27
+}

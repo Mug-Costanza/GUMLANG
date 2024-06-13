@@ -35,9 +35,21 @@ Token Lexer::identifier() {
     }
     if (value == "if") return makeToken(TokenType::TOKEN_IF, value);
     if (value == "then") return makeToken(TokenType::TOKEN_THEN, value);
-    if (value == "else") return makeToken(TokenType::TOKEN_ELSE, value);
+    if (value == "else") {
+        // Check for "else if" combination
+        skipWhitespace();
+        if (currentChar == 'i') {
+            advance();
+            if (currentChar == 'f') {
+                advance();
+                return makeToken(TokenType::TOKEN_ELSEIF, "else if");
+            }
+        }
+        return makeToken(TokenType::TOKEN_ELSE, value);
+    }
     if (value == "print") return makeToken(TokenType::TOKEN_PRINT, value);
     if (value == "for") return makeToken(TokenType::TOKEN_FOR, value);
+    if (value == "random") return makeToken(TokenType::TOKEN_RANDOM, value);
     return makeToken(TokenType::TOKEN_IDENTIFIER, value);
 }
 
@@ -135,6 +147,10 @@ Token Lexer::getNextToken() {
             advance();
             return makeToken(TokenType::TOKEN_OPERATOR_PLUSEQUAL, "+=");
         }
+        if (currentChar == '+') {
+            advance();
+            return makeToken(TokenType::TOKEN_OPERATOR_INCREMENT, "++");
+        }
         return makeToken(TokenType::TOKEN_OPERATOR, "+");
     }
 
@@ -142,7 +158,11 @@ Token Lexer::getNextToken() {
         advance();
         if (currentChar == '=') {
             advance();
-            return makeToken(TokenType::TOKEN_OPERATOR_MINUSEQUAL, "-="); // Modified this line
+            return makeToken(TokenType::TOKEN_OPERATOR_MINUSEQUAL, "-=");
+        }
+        if (currentChar == '-') {
+            advance();
+            return makeToken(TokenType::TOKEN_OPERATOR_DECREMENT, "--");
         }
         return makeToken(TokenType::TOKEN_OPERATOR, "-");
     }
@@ -151,7 +171,7 @@ Token Lexer::getNextToken() {
         advance();
         if (currentChar == '=') {
             advance();
-            return makeToken(TokenType::TOKEN_OPERATOR_STAREQUAL, "*="); // Modified this line
+            return makeToken(TokenType::TOKEN_OPERATOR_STAREQUAL, "*=");
         }
         return makeToken(TokenType::TOKEN_OPERATOR, "*");
     }
@@ -160,9 +180,14 @@ Token Lexer::getNextToken() {
         advance();
         if (currentChar == '=') {
             advance();
-            return makeToken(TokenType::TOKEN_OPERATOR_SLASHEQUAL, "/="); // Modified this line
+            return makeToken(TokenType::TOKEN_OPERATOR_SLASHEQUAL, "/=");
         }
         return makeToken(TokenType::TOKEN_OPERATOR, "/");
+    }
+
+    if (currentChar == ',') {
+        advance(); // Don't forget to advance the lexer here
+        return makeToken(TokenType::TOKEN_COMMA, ",");
     }
 
     std::cerr << "Unexpected character: " << currentChar << " at line " << line << ", column " << column << std::endl;

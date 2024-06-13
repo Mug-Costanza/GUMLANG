@@ -54,39 +54,27 @@ void Parser::expectToken(TokenType type) {
 
 void Parser::parseIfStatement() {
     advanceToken(); // consume 'if'
+    
     std::string condition;
-    while (currentToken.type != TokenType::TOKEN_THEN) {
+    while (currentToken.type != TokenType::TOKEN_THEN && currentToken.type != TokenType::TOKEN_LBRACE && currentToken.type != TokenType::TOKEN_EOL) {
         condition += currentToken.value + " ";
         advanceToken();
     }
-    advanceToken(); // consume 'then'
+    
+    if (currentToken.type == TokenType::TOKEN_THEN)
+        advanceToken(); // consume 'then'
 
     bool conditionResult = evaluateCondition(condition);
+
+    if (currentToken.type == TokenType::TOKEN_EOL)
+        advanceToken();
 
     if (currentToken.type == TokenType::TOKEN_LBRACE) {
         advanceToken(); // consume '{'
         if (conditionResult) {
             parseBlock();
-            if (currentToken.type == TokenType::TOKEN_ELSE) {
-                advanceToken(); // consume 'else'
-                if (currentToken.type == TokenType::TOKEN_LBRACE) {
-                    advanceToken(); // consume '{'
-                    skipBlock(); // skip else block
-                } else {
-                    std::cerr << "Syntax error: else must be followed by a block enclosed in braces." << std::endl;
-                }
-            }
         } else {
             skipBlock(); // skip if block
-            if (currentToken.type == TokenType::TOKEN_ELSE) {
-                advanceToken(); // consume 'else'
-                if (currentToken.type == TokenType::TOKEN_LBRACE) {
-                    advanceToken(); // consume '{'
-                    parseBlock(); // parse else block
-                } else {
-                    std::cerr << "Syntax error: else must be followed by a block enclosed in braces." << std::endl;
-                }
-            }
         }
     } else {
         // Handle single-line if statement
@@ -102,7 +90,56 @@ void Parser::parseIfStatement() {
             }
         }
     }
+    handleElseIfOrElse(); // Process else if and else blocks
 }
+
+void Parser::handleElseIfOrElse() {
+    bool conditionMet = false;
+
+    while (currentToken.type == TokenType::TOKEN_ELSEIF || currentToken.type == TokenType::TOKEN_ELSE) {
+        if (currentToken.type == TokenType::TOKEN_ELSEIF) {
+            advanceToken(); // consume 'else if'
+
+            std::string condition;
+            while (currentToken.type != TokenType::TOKEN_THEN && currentToken.type != TokenType::TOKEN_LBRACE && currentToken.type != TokenType::TOKEN_EOL) {
+                condition += currentToken.value + " ";
+                advanceToken();
+            }
+
+            if (currentToken.type == TokenType::TOKEN_THEN)
+                advanceToken(); // consume 'then'
+
+            bool conditionResult = evaluateCondition(condition);
+
+            if (currentToken.type == TokenType::TOKEN_EOL)
+                advanceToken();
+
+            if (currentToken.type == TokenType::TOKEN_LBRACE) {
+                advanceToken(); // consume '{'
+                if (conditionResult && !conditionMet) {
+                    parseBlock();
+                    conditionMet = true;
+                } else {
+                    skipBlock(); // skip this else if block
+                }
+            }
+        } else if (currentToken.type == TokenType::TOKEN_ELSE) {
+            advanceToken(); // consume 'else'
+            if (currentToken.type == TokenType::TOKEN_LBRACE) {
+                advanceToken(); // consume '{'
+                if (!conditionMet) {
+                    parseBlock(); // parse else block
+                } else {
+                    skipBlock(); // skip else block
+                }
+            } else {
+                std::cerr << "Syntax error: else must be followed by a block enclosed in braces." << std::endl;
+                exit(1);
+            }
+        }
+    }
+}
+
 
 void Parser::parseForLoop() {
     advanceToken(); // consume 'for'
@@ -120,49 +157,60 @@ void Parser::parseForLoop() {
     }
 
     advanceToken(); // consume the cycle amount
-    expectToken(TokenType::TOKEN_IDENTIFIER);
-    std::string loopVar = currentToken.value;
-    advanceToken(); // consume the loop variable
 
-    expectToken(TokenType::TOKEN_LBRACE);
-    advanceToken(); // consume '{'
+    if (currentToken.type == TokenType::TOKEN_LBRACE) {
+        advanceToken(); // consume '{'
+        std::vector<std::string> loopBody;
+        std::string loopLine;
 
-    std::vector<std::string> loopBody;
-    std::string loopLine;
-
-    while (currentToken.type != TokenType::TOKEN_RBRACE) {
-        if (currentToken.type == TokenType::TOKEN_EOF) {
-            std::cerr << "Syntax error: unexpected end of file in 'for' loop." << std::endl;
-            exit(1);
+        while (currentToken.type != TokenType::TOKEN_RBRACE) {
+            if (currentToken.type == TokenType::TOKEN_EOF) {
+                std::cerr << "Syntax error: unexpected end of file in 'for' loop." << std::endl;
+                exit(1);
+            }
+            if (currentToken.type == TokenType::TOKEN_EOL) {
+                loopBody.push_back(loopLine);
+                loopLine.clear();
+            } else {
+                loopLine += currentToken.value + " ";
+            }
+            advanceToken();
         }
-        loopLine += currentToken.value + " ";
-        if (currentToken.type == TokenType::TOKEN_EOL) {
-            loopBody.push_back(loopLine);
-            loopLine.clear();
-        }
-        advanceToken();
-    }
-    advanceToken(); // consume '}'
+        advanceToken(); // consume '}'
 
-    for (int i = 0; i < cycles; ++i) {
-        for (const auto& line : loopBody) {
-            std::istringstream iss(line);
-            std::string token;
-            while (iss >> token) {
-                if (token == loopVar) {
-                    continue;
-                }
-                std::string newLine = token;
+        for (int i = 0; i < cycles; ++i) {
+            for (const auto& line : loopBody) {
+                std::istringstream iss(line);
+                std::string token;
                 while (iss >> token) {
-                    newLine += " " + token;
+                    // Reset lexer and currentToken for each line
+                    lexer = Lexer(line);
+                    advanceToken();
+                    // Parse the line as a complete statement
+                    parseLine();
                 }
-                handleExpression(newLine);
             }
         }
-    }
 
-    if (currentToken.type == TokenType::TOKEN_EOL) {
-        advanceToken(); // consume EOL if present
+        if (currentToken.type == TokenType::TOKEN_EOL) {
+            advanceToken(); // consume EOL if present
+        }
+    } else {
+        // Handle single-line for loop
+        std::string singleLineStatement;
+        while (currentToken.type != TokenType::TOKEN_EOL && currentToken.type != TokenType::TOKEN_EOF) {
+            singleLineStatement += currentToken.value + " ";
+            advanceToken();
+        }
+        for (int i = 0; i < cycles; ++i) {
+            std::istringstream iss(singleLineStatement);
+            lexer = Lexer(singleLineStatement);
+            advanceToken();
+            parseLine();
+        }
+        if (currentToken.type == TokenType::TOKEN_EOL) {
+            advanceToken(); // consume EOL if present
+        }
     }
 }
 
@@ -187,25 +235,35 @@ void Parser::parseLine() {
         parsePrintStatement();
     } else if (currentToken.type == TokenType::TOKEN_FOR) {
         parseForLoop();
+    } else if (currentToken.type == TokenType::TOKEN_RANDOM) {
+        parseRandom();
     } else if (currentToken.type == TokenType::TOKEN_IDENTIFIER) {
         std::string varName = currentToken.value;
         advanceToken();
         if (currentToken.type == TokenType::TOKEN_ASSIGN) {
             advanceToken(); // consume '='
             parseAssignment(varName);
-        } else if (currentToken.type == TokenType::TOKEN_OPERATOR_PLUSEQUAL) { // check for += operator
+        } else if (currentToken.type == TokenType::TOKEN_OPERATOR_PLUSEQUAL) {
             advanceToken(); // consume '+='
             parseAdditionAssignment(varName);
-        } else if (currentToken.type == TokenType::TOKEN_OPERATOR_MINUSEQUAL) { // check for -= operator
+        } else if (currentToken.type == TokenType::TOKEN_OPERATOR_MINUSEQUAL) {
             advanceToken(); // consume '-='
             parseSubtractionAssignment(varName);
-        } else if (currentToken.type == TokenType::TOKEN_OPERATOR_STAREQUAL) { // check for *= operator
+        } else if (currentToken.type == TokenType::TOKEN_OPERATOR_STAREQUAL) {
             advanceToken(); // consume '*='
             parseMultiplicationAssignment(varName);
-        } else if (currentToken.type == TokenType::TOKEN_OPERATOR_SLASHEQUAL) { // check for /= operator
+        } else if (currentToken.type == TokenType::TOKEN_OPERATOR_SLASHEQUAL) {
             advanceToken(); // consume '/='
             parseDivisionAssignment(varName);
+        } else if (currentToken.type == TokenType::TOKEN_OPERATOR_INCREMENT) {
+            advanceToken(); // consume '++'
+            parseIncrement(varName);
+        } else if (currentToken.type == TokenType::TOKEN_OPERATOR_DECREMENT) {
+            advanceToken(); // consume '--'
+            parseDecrement(varName);
         } else if (currentToken.type == TokenType::TOKEN_NUMBER || currentToken.type == TokenType::TOKEN_STRING) {
+            parseVariableDeclaration(varName);
+        } else if (currentToken.type == TokenType::TOKEN_EOL) {
             parseVariableDeclaration(varName);
         } else {
             std::cerr << "Syntax error: invalid line format: " << varName << std::endl;
@@ -230,15 +288,21 @@ void Parser::parseSingleLineStatement() {
         } else if (currentToken.type == TokenType::TOKEN_OPERATOR_PLUSEQUAL) {
             advanceToken(); // consume '+='
             parseAdditionAssignment(varName);
-        } else if (currentToken.type == TokenType::TOKEN_OPERATOR_MINUSEQUAL) { // check for -= operator
+        } else if (currentToken.type == TokenType::TOKEN_OPERATOR_MINUSEQUAL) {
             advanceToken(); // consume '-='
             parseSubtractionAssignment(varName);
-        } else if (currentToken.type == TokenType::TOKEN_OPERATOR_STAREQUAL) { // check for *= operator
+        } else if (currentToken.type == TokenType::TOKEN_OPERATOR_STAREQUAL) {
             advanceToken(); // consume '*='
             parseMultiplicationAssignment(varName);
-        } else if (currentToken.type == TokenType::TOKEN_OPERATOR_SLASHEQUAL) { // check for /= operator
+        } else if (currentToken.type == TokenType::TOKEN_OPERATOR_SLASHEQUAL) {
             advanceToken(); // consume '/='
             parseDivisionAssignment(varName);
+        } else if (currentToken.type == TokenType::TOKEN_OPERATOR_INCREMENT) {
+            advanceToken(); // consume '++'
+            parseIncrement(varName);
+        } else if (currentToken.type == TokenType::TOKEN_OPERATOR_DECREMENT) {
+            advanceToken(); // consume '--'
+            parseDecrement(varName);
         } else if (currentToken.type == TokenType::TOKEN_NUMBER || currentToken.type == TokenType::TOKEN_STRING) {
             parseVariableDeclaration(varName);
         } else {
@@ -254,7 +318,12 @@ void Parser::parseVariableDeclaration(const std::string& varName) {
     if (currentToken.type == TokenType::TOKEN_NUMBER) {
         variables[varName] = Variable(varName, std::stod(currentToken.value));
     } else if (currentToken.type == TokenType::TOKEN_STRING) {
-        variables[varName] = Variable(varName, currentToken.value);
+        // Remove surrounding quotes if present
+        std::string value = currentToken.value;
+        if (value.front() == '"' && value.back() == '"') {
+            value = value.substr(1, value.size() - 2);
+        }
+        variables[varName] = Variable(varName, value);
     } else {
         std::cerr << "Syntax error: expected a number or string for variable declaration." << std::endl;
     }
@@ -270,13 +339,13 @@ void Parser::parseAssignment(const std::string& varName) {
         value += currentToken.value + " ";
         advanceToken();
     }
+    // Remove surrounding quotes if present
+    if (value.front() == '"' && value.back() == '"') {
+        value = value.substr(1, value.size() - 2);
+    }
     if (isNumber(value)) {
         variables[varName] = Variable(varName, std::stod(value));
     } else {
-        // Remove surrounding quotes if present
-        if (value.front() == '"' && value.back() == '"') {
-            value = value.substr(1, value.size() - 2);
-        }
         variables[varName] = Variable(varName, value);
     }
 }
@@ -371,6 +440,30 @@ void Parser::parseDivisionAssignment(const std::string& varName) {
     }
 }
 
+void Parser::parseIncrement(const std::string& varName) {
+    if (variables.find(varName) == variables.end()) {
+        std::cerr << "Undefined variable: " << varName << std::endl;
+        return;
+    }
+    if (variables[varName].type == VariableType::NUMBER) {
+        variables[varName].numberValue += 1;
+    } else {
+        std::cerr << "Type error: ++ operation only supports numeric types." << std::endl;
+    }
+}
+
+void Parser::parseDecrement(const std::string& varName) {
+    if (variables.find(varName) == variables.end()) {
+        std::cerr << "Undefined variable: " << varName << std::endl;
+        return;
+    }
+    if (variables[varName].type == VariableType::NUMBER) {
+        variables[varName].numberValue -= 1;
+    } else {
+        std::cerr << "Type error: -- operation only supports numeric types." << std::endl;
+    }
+}
+
 void Parser::skipBlock() {
     int braceCount = 1; // Starting from the opening brace
 
@@ -388,21 +481,17 @@ void Parser::skipBlock() {
     advanceToken(); // consume the last '}'
 }
 
-bool Parser::evaluateCondition(const std::string& condition)
-{
+bool Parser::evaluateCondition(const std::string& condition) {
     std::istringstream iss(condition);
     std::string token;
     std::vector<std::string> tokens;
-    while (std::getline(iss, token, ' '))
-    {
-        if (!token.empty())
-        {
+    while (std::getline(iss, token, ' ')) {
+        if (!token.empty()) {
             tokens.push_back(token);
         }
     }
 
-    if (tokens.size() != 3)
-    {
+    if (tokens.size() != 3) {
         std::cerr << "Syntax error: invalid condition: " << condition << std::endl;
         return false;
     }
@@ -411,18 +500,19 @@ bool Parser::evaluateCondition(const std::string& condition)
     std::string op = tokens[1];
     Variable right = evaluateExpression(tokens[2]);
 
-    if (left.type == VariableType::NUMBER && right.type == VariableType::NUMBER)
-    {
+    if (left.type == VariableType::NUMBER && right.type == VariableType::NUMBER) {
         if (op == "==") return left.numberValue == right.numberValue;
         if (op == "!=") return left.numberValue != right.numberValue;
         if (op == "<") return left.numberValue < right.numberValue;
         if (op == "<=") return left.numberValue <= right.numberValue;
         if (op == ">") return left.numberValue > right.numberValue;
         if (op == ">=") return left.numberValue >= right.numberValue;
-    }
-    else
-    {
-        std::cerr << "Unsupported operation for non-numeric types: " << condition << std::endl;
+    } else if (left.type == VariableType::STRING && right.type == VariableType::STRING) {
+        if (op == "==") return left.value == right.value;
+        if (op == "!=") return left.value != right.value;
+        std::cerr << "Unsupported operation for string types: " << condition << std::endl;
+    } else {
+        std::cerr << "Type error: incompatible types in condition: " << condition << std::endl;
     }
 
     return false;
@@ -516,6 +606,8 @@ Variable Parser::parseFactor(std::istringstream& iss) {
     iss >> token;
     if (isNumber(token)) {
         return Variable(token, std::stod(token));
+    } else if (token == "random") {
+        return parseRandomFunction(iss);
     } else if (token == "(") {
         Variable result = parseExpression(iss);
         iss >> token; // Expecting ')'
@@ -550,6 +642,114 @@ bool Parser::isNumber(const std::string& s) {
     char* end = nullptr;
     double val = std::strtod(s.c_str(), &end);
     return end != s.c_str() && *end == '\0' && val != HUGE_VAL;
+}
+
+void Parser::parseRandom() {
+    advanceToken(); // consume 'random'
+    if (currentToken.type != TokenType::TOKEN_LPAREN) {
+        std::cerr << "Syntax error: expected '(' after 'random'" << std::endl;
+        exit(1);
+    }
+
+    advanceToken(); // consume '('
+
+    int minValue = 0;
+    int maxValue = 0;
+
+    // Parse min value
+    if (currentToken.type == TokenType::TOKEN_NUMBER) {
+        minValue = std::stoi(currentToken.value);
+        advanceToken(); // consume the min value
+    } else {
+        std::cerr << "Syntax error: expected a number as the first argument to 'random'" << std::endl;
+        exit(1);
+    }
+
+    if (currentToken.type != TokenType::TOKEN_COMMA) {
+        std::cerr << "Syntax error: expected ',' after first argument to 'random'" << std::endl;
+        exit(1);
+    }
+
+    advanceToken(); // consume ','
+
+    // Parse max value
+    if (currentToken.type == TokenType::TOKEN_NUMBER) {
+        maxValue = std::stoi(currentToken.value);
+        advanceToken(); // consume the max value
+    } else {
+        std::cerr << "Syntax error: expected a number as the second argument to 'random'" << std::endl;
+        exit(1);
+    }
+
+    if (currentToken.type != TokenType::TOKEN_RPAREN) {
+        std::cerr << "Syntax error: expected ')' after arguments to 'random'" << std::endl;
+        exit(1);
+    }
+
+    advanceToken(); // consume ')'
+
+    // Generate the random number
+    int randomNumber = generateRandomNumber(minValue, maxValue);
+    std::cout << randomNumber << std::endl;
+
+    if (currentToken.type == TokenType::TOKEN_EOL) {
+        advanceToken(); // consume EOL if present
+    }
+}
+
+Variable Parser::parseRandomFunction(std::istringstream& iss) {
+    std::string token;
+    iss >> token;
+    if (token != "(") {
+        std::cerr << "Syntax error: expected '(' after 'random'" << std::endl;
+        return Variable("", 0.0);
+    }
+
+    int minValue = 0;
+    int maxValue = 0;
+
+    // Parse min value
+    iss >> token;
+    if (isNumber(token)) {
+        minValue = std::stoi(token);
+    } else {
+        std::cerr << "Syntax error: expected a number as the first argument to 'random'" << std::endl;
+        return Variable("", 0.0);
+    }
+
+    iss >> token;
+    if (token != ",") {
+        std::cerr << "Syntax error: expected ',' after first argument to 'random'" << std::endl;
+        return Variable("", 0.0);
+    }
+
+    // Parse max value
+    iss >> token;
+    if (isNumber(token)) {
+        maxValue = std::stoi(token);
+    } else {
+        std::cerr << "Syntax error: expected a number as the second argument to 'random'" << std::endl;
+        return Variable("", 0.0);
+    }
+
+    iss >> token;
+    if (token != ")") {
+        std::cerr << "Syntax error: expected ')' after arguments to 'random'" << std::endl;
+        return Variable("", 0.0);
+    }
+
+    // Generate the random number
+    int randomNumber = generateRandomNumber(minValue, maxValue);
+    return Variable("", static_cast<double>(randomNumber));
+}
+
+// Helper function to generate random numbers
+int Parser::generateRandomNumber(int minValue, int maxValue) {
+    std::random_device rd; // Obtain a random number from hardware
+    std::mt19937 eng(rd()); // Seed the generator
+    std::uniform_int_distribution<> distr(minValue, maxValue); // Define the range
+
+    return distr(eng);
 }
 
 bool Parser::hasGumExtension(const std::string& filename)

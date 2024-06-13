@@ -10,6 +10,7 @@
 #include <string>
 #include <iomanip>
 #include <unordered_map>
+#include <random>
 
 namespace GUMLANG {
 
@@ -20,6 +21,7 @@ public:
 
 private:
     void parseIfStatement();
+    void handleElseIfOrElse();
     void parseSingleLineStatement();
     void parseForLoop();
     void parsePrintStatement();
@@ -27,6 +29,8 @@ private:
     void parseSubtractionAssignment(const std::string& varName);
     void parseMultiplicationAssignment(const std::string& varName);
     void parseDivisionAssignment(const std::string& varName);
+    void parseIncrement(const std::string& varName);
+    void parseDecrement(const std::string& varName);
     void parseLine();
     void parseBlock();
     void skipBlock();
@@ -41,6 +45,9 @@ private:
     void parseAssignment(const std::string& varName);
 
     std::string formatNumber(double number);
+    int generateRandomNumber(int minValue, int maxValue);
+    void parseRandom();
+    Variable parseRandomFunction(std::istringstream& iss);
     bool isNumber(const std::string& s);
     bool hasGumExtension(const std::string& filename);
     
