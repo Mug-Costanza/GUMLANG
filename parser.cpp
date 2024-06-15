@@ -249,7 +249,31 @@ void Parser::parseLine() {
         advanceToken();
         if (currentToken.type == TokenType::TOKEN_ASSIGN) {
             advanceToken(); // consume '='
-            parseAssignment(varName);
+            if (currentToken.type == TokenType::TOKEN_IDENTIFIER)
+            {
+                std::string secondVarName = currentToken.value;
+                advanceToken();
+                if (currentToken.type == TokenType::TOKEN_EOL) {
+                    // Syntax: var1 var2 EOL
+                    // Assign var1's value to var2
+                    if (variables.find(varName) == variables.end()) {
+                        std::cerr << "Undefined variable: " << varName << std::endl;
+                        return;
+                    }
+                    if (variables.find(secondVarName) == variables.end()) {
+                        std::cerr << "Undefined variable: " << secondVarName << std::endl;
+                        return;
+                    }
+                    variables[varName] = variables[secondVarName];
+                    advanceToken(); // consume EOL
+                } else {
+                    std::cerr << "Syntax error: expected EOL after variable assignment." << std::endl;
+                }
+            }
+            else
+            {
+                parseAssignment(varName);
+            }
         } else if (currentToken.type == TokenType::TOKEN_OPERATOR_PLUSEQUAL) {
             advanceToken(); // consume '+='
             parseAdditionAssignment(varName);
@@ -268,6 +292,26 @@ void Parser::parseLine() {
         } else if (currentToken.type == TokenType::TOKEN_OPERATOR_DECREMENT) {
             advanceToken(); // consume '--'
             parseDecrement(varName);
+        } else if (currentToken.type == TokenType::TOKEN_IDENTIFIER) {
+            // Check for variable assignment to another variable
+            std::string secondVarName = currentToken.value;
+            advanceToken();
+            if (currentToken.type == TokenType::TOKEN_EOL) {
+                // Syntax: var1 var2 EOL
+                // Assign var1's value to var2
+                if (variables.find(varName) == variables.end()) {
+                    std::cerr << "Undefined variable: " << varName << std::endl;
+                    return;
+                }
+                if (variables.find(secondVarName) == variables.end()) {
+                    std::cerr << "Undefined variable: " << secondVarName << std::endl;
+                    return;
+                }
+                variables[varName] = variables[secondVarName];
+                advanceToken(); // consume EOL
+            } else {
+                std::cerr << "Syntax error: expected EOL after variable assignment." << std::endl;
+            }
         } else if (currentToken.type == TokenType::TOKEN_NUMBER || currentToken.type == TokenType::TOKEN_STRING) {
             parseVariableDeclaration(varName);
         } else if (currentToken.type == TokenType::TOKEN_EOL) {

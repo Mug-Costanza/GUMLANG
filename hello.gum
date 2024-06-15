@@ -1,3 +1,49 @@
+
+type1 "human"
+type2 "zombie"
+
+type1 = 0
+type2 = "type1"
+
+print type1
+print type2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
 // Declare number variable
 a 0
 
@@ -89,3 +135,5 @@ print phrase26
 } else if a == 27 {
 print phrase27
 }
+*/
+
