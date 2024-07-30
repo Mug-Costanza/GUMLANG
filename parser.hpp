@@ -43,10 +43,12 @@ private:
 
     void parseVariableDeclaration(const std::string& varName);
     void parseAssignment(const std::string& varName);
+    void skipRemainingBlocks();
 
     std::string formatNumber(double number);
     int generateRandomNumber(int minValue, int maxValue);
     void parseRandom();
+    Variable parseStringLiteral(std::istringstream& iss);
     Variable parseRandomFunction(std::istringstream& iss);
     bool isNumber(const std::string& s);
     bool hasGumExtension(const std::string& filename);

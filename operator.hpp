@@ -7,7 +7,6 @@
      * 2 - SUB - '-'
      * 3 - MUL - '*'
      * 4 - DIV - '/'
-
 */
 
 namespace GUMLANG

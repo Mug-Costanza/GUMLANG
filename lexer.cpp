@@ -218,6 +218,16 @@ Token Lexer::getNextToken() {
             advance();
             return makeToken(TokenType::TOKEN_COMMA, ",");
         }
+        
+        if (currentChar == '[') {
+            advance();
+            return makeToken(TokenType::TOKEN_LBRACKET, "[");
+        }
+        
+        if (currentChar == ']') {
+            advance();
+            return makeToken(TokenType::TOKEN_RBRACKET, "]");
+        }
 
         std::cerr << "Unexpected character: " << currentChar << " at line " << line << ", column " << column << std::endl;
         advance();

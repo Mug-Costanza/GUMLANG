@@ -1,4 +1,3 @@
-// token.hpp
 #ifndef TOKEN_HPP
 #define TOKEN_HPP
 
@@ -29,6 +28,8 @@ enum class TokenType {
     TOKEN_LPAREN,
     TOKEN_RPAREN,
     TOKEN_COMMA,
+    TOKEN_LBRACKET,
+    TOKEN_RBRACKET,
     TOKEN_RANDOM,
     TOKEN_UNKNOWN
 };
@@ -41,4 +42,3 @@ struct Token {
 };
 
 #endif // TOKEN_HPP
-
